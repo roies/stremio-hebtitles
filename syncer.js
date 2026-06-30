@@ -5,6 +5,7 @@ const { createWriteStream, promises: fs } = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { translateSrt } = require('./translator');
 
 const CACHE_DIR = path.join(os.tmpdir(), 'subsync-cache');
 
@@ -34,8 +35,8 @@ function runFfsubsync(videoPath, subPath, outPath) {
   });
 }
 
-function cacheKey(subUrl, videoUrl) {
-  return crypto.createHash('sha1').update(`${subUrl}|${videoUrl || ''}`).digest('hex');
+function cacheKey(subUrl, videoUrl, targetLang) {
+  return crypto.createHash('sha1').update(`${subUrl}|${videoUrl || ''}|${targetLang || ''}`).digest('hex');
 }
 
 /**
@@ -49,12 +50,13 @@ function cacheKey(subUrl, videoUrl) {
 async function syncSubtitle({
   subUrl,
   videoUrl = null,
+  targetLang = null,
   fetch: fetchFn = require('node-fetch'),
   runSync = runFfsubsync,
 }) {
   await fs.mkdir(CACHE_DIR, { recursive: true });
 
-  const key = cacheKey(subUrl, videoUrl);
+  const key = cacheKey(subUrl, videoUrl, targetLang);
   const cachedPath = path.join(CACHE_DIR, `${key}.srt`);
 
   // Cache hit — skip download and sync
@@ -80,6 +82,10 @@ async function syncSubtitle({
     } else {
       // ponytail: no video = no sync; return raw subtitle so Stremio still gets something
       result = await fs.readFile(subPath, 'utf8');
+    }
+
+    if (targetLang) {
+      result = await translateSrt(result, targetLang, fetchFn);
     }
 
     await fs.writeFile(cachedPath, result, 'utf8');

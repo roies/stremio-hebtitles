@@ -12,6 +12,7 @@ const { Readable } = require('stream');
 const http = require('http');
 
 const { syncSubtitle, cacheKey, CACHE_DIR } = require('./syncer');
+const { parseSrt, buildSrt, translateSrt } = require('./translator');
 
 let passed = 0;
 let failed = 0;
@@ -280,6 +281,84 @@ async function runTests() {
   });
 
   // Summary
+  console.log('\ntranslator');
+
+  const TWO_BLOCK_SRT =
+    '1\n00:00:01,000 --> 00:00:03,000\nHello\n\n2\n00:00:05,000 --> 00:00:07,000\nGoodbye\n';
+
+  await test('parseSrt extracts index, timing, text', () => {
+    const blocks = parseSrt(TWO_BLOCK_SRT);
+    assert.strictEqual(blocks.length, 2);
+    assert.strictEqual(blocks[0].index, '1');
+    assert.strictEqual(blocks[0].timing, '00:00:01,000 --> 00:00:03,000');
+    assert.strictEqual(blocks[0].text, 'Hello');
+    assert.strictEqual(blocks[1].text, 'Goodbye');
+  });
+
+  await test('buildSrt round-trips parseSrt', () => {
+    const blocks = parseSrt(TWO_BLOCK_SRT);
+    const rebuilt = buildSrt(blocks);
+    assert.strictEqual(rebuilt, TWO_BLOCK_SRT);
+  });
+
+  await test('parseSrt handles Windows line endings', () => {
+    const winSrt = '1\r\n00:00:01,000 --> 00:00:03,000\r\nHello\r\n\r\n';
+    const blocks = parseSrt(winSrt);
+    assert.strictEqual(blocks.length, 1);
+    assert.strictEqual(blocks[0].text, 'Hello');
+  });
+
+  await test('parseSrt handles multi-line subtitle text', () => {
+    const multiLine = '1\n00:00:01,000 --> 00:00:03,000\nLine one\nLine two\n\n';
+    const blocks = parseSrt(multiLine);
+    assert.strictEqual(blocks[0].text, 'Line one\nLine two');
+  });
+
+  await test('translateSrt calls translate fn for each block', async () => {
+    const translated = [];
+    const mockTranslateFetch = async url => {
+      const text = decodeURIComponent(url.match(/&q=(.+)$/)[1]);
+      translated.push(text);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [[[`[${text}]`, text]]],
+      };
+    };
+    const result = await translateSrt(TWO_BLOCK_SRT, 'he', mockTranslateFetch);
+    assert.ok(result.includes('[Hello]'), 'first block translated');
+    assert.ok(result.includes('[Goodbye]'), 'second block translated');
+    assert.strictEqual(translated.length, 2);
+  });
+
+  await test('translateSrt falls back to original text on error', async () => {
+    const mockFetch = async () => ({ ok: false, status: 429, json: async () => [] });
+    const result = await translateSrt(TWO_BLOCK_SRT, 'he', mockFetch);
+    // Should still be valid SRT with original text
+    assert.ok(result.includes('Hello'));
+    assert.ok(result.includes('Goodbye'));
+  });
+
+  await test('syncSubtitle translates when targetLang provided', async () => {
+    const subUrl = 'http://test.invalid/translate-sub.srt';
+    await fs.unlink(path.join(CACHE_DIR, `${cacheKey(subUrl, null, 'he')}.srt`)).catch(() => {});
+
+    const mockFetch = async url => {
+      if (url === subUrl) {
+        return { ok: true, status: 200, body: require('stream').Readable.from([Buffer.from(TWO_BLOCK_SRT)]) };
+      }
+      // Translate endpoint
+      const text = decodeURIComponent(url.match(/&q=(.+)$/)[1]);
+      return {
+        ok: true, status: 200,
+        json: async () => [[[`TRANSLATED:${text}`, text]]],
+      };
+    };
+
+    const result = await syncSubtitle({ subUrl, targetLang: 'he', fetch: mockFetch });
+    assert.ok(result.includes('TRANSLATED:'), 'translation was applied');
+  });
+
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);
   if (failed > 0) process.exit(1);
 }

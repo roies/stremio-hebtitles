@@ -62,6 +62,7 @@ async function resolveOpenSubsDownloadUrl(fileId) {
 builder.defineSubtitlesHandler(async ({ type, id }) => {
   const [imdbId, season, episode] = id.split(':');
   const videoUrl = videoUrlStore.get(imdbId) || '';
+  const targetLang = process.env.TARGET_LANG || '';
   const subs = await fetchOpenSubsList(imdbId, type, season, episode).catch(() => []);
 
   const subtitles = subs.slice(0, 5).flatMap(sub => {
@@ -70,12 +71,13 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
 
     const q = new URLSearchParams({ fileId: String(file.file_id) });
     if (videoUrl) q.set('videoUrl', videoUrl);
+    if (targetLang) q.set('lang', targetLang);
 
     return [{
       id: `subsync-${file.file_id}`,
       url: `${BASE_URL}/sync.srt?${q}`,
-      lang: sub.attributes?.language || 'eng',
-      name: `[SubSync] ${sub.attributes?.release || 'Auto'}`,
+      lang: targetLang || sub.attributes?.language || 'eng',
+      name: `[SubSync${targetLang ? `→${targetLang}` : ''}] ${sub.attributes?.release || 'Auto'}`,
     }];
   });
 
@@ -107,7 +109,8 @@ app.post('/register', (req, res) => {
  * GET /sync.srt?fileId=<id>&videoUrl=<encoded>        (OpenSubtitles file ID)
  */
 app.get('/sync.srt', async (req, res) => {
-  const { subUrl, fileId, videoUrl } = req.query;
+  const { subUrl, fileId, videoUrl, lang } = req.query;
+  const targetLang = lang || process.env.TARGET_LANG || null;
 
   try {
     let resolvedSubUrl = subUrl;
@@ -121,6 +124,7 @@ app.get('/sync.srt', async (req, res) => {
     const content = await syncSubtitle({
       subUrl: resolvedSubUrl,
       videoUrl: videoUrl || null,
+      targetLang,
       fetch,
     });
 
