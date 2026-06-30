@@ -12,11 +12,13 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const videoUrlStore = new Map();
 
 const manifest = {
-  id: 'community.subsync',
+  id: 'community.hebtitles',
   version: '1.0.0',
-  name: 'SubSync',
+  name: 'HebTitles',
   description:
-    'Auto-syncs subtitles using ffsubsync. Set OPENSUBS_API_KEY for OpenSubtitles integration.',
+    'Automatic English→Hebrew subtitle translation for any movie or series. ' +
+    'Fetches English subtitles, translates to Hebrew in real time, and optionally ' +
+    'fixes subtitle timing using ffsubsync.',
   resources: ['subtitles'],
   types: ['movie', 'series'],
   idPrefixes: ['tt'],

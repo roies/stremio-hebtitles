@@ -1,6 +1,8 @@
-# stremio-subsync
+# HebTitles — Stremio Hebrew Subtitles Addon
 
-Stremio addon that fetches English subtitles and **automatically translates them to Hebrew** in real time, with optional subtitle timing sync via [ffsubsync](https://github.com/smacke/ffsubsync).
+Stremio addon that **automatically fetches English subtitles and translates them to Hebrew** for any movie or series. Optionally fixes subtitle timing using [ffsubsync](https://github.com/smacke/ffsubsync).
+
+> No API key required. Translation is free via Google Translate.
 
 ---
 
@@ -12,63 +14,61 @@ Stremio addon that fetches English subtitles and **automatically translates them
 
 **Steps:**
 
-1. [Download this repo as ZIP](https://github.com/roies/stremio-subsync/archive/refs/heads/master.zip) and extract it
-2. Double-click **`install.bat`** — installs all dependencies
-3. Double-click **`start.bat`** — starts the server and shows your URL
-4. Copy the URL (looks like `http://192.168.1.X:7000/manifest.json`)
-5. Open Stremio on any device → **Settings → Add-ons** → paste the URL → **Install**
+1. [Download ZIP](https://github.com/roies/stremio-hebtitles/archive/refs/heads/master.zip) → extract it
+2. Double-click **`install.bat`** — installs all dependencies (run once)
+3. Double-click **`start.bat`** — starts the server and shows your URL:
+   ```
+   Add this URL to Stremio: http://192.168.1.X:7000/manifest.json
+   ```
+4. Open Stremio on any device → **Settings → Add-ons** → paste the URL → **Install**
 
-> The PC running `start.bat` must be on and connected to the same Wi-Fi as your TV.
-
----
-
-## How it works
-
-1. Stremio requests subtitles for what you're watching (by IMDB ID)
-2. SubSync fetches English subtitles from OpenSubtitles (set `OPENSUBS_API_KEY` env var)
-3. Translates them to Hebrew automatically using Google Translate
-4. Serves the translated `.srt` file back to Stremio (cached — each subtitle translated only once)
-
-Optionally, if you register the video stream URL (see below), it also runs `ffsubsync` to fix timing offset before translating.
+> Keep `start.bat` running while you watch. The PC must be on the same Wi-Fi as your TV.
 
 ---
 
-## Register a video URL for timing sync (optional)
+## What it does
 
-Stremio doesn't share the video URL with addons, so you need to register it manually:
+1. Stremio asks for subtitles for whatever you're watching
+2. HebTitles fetches English subtitles from OpenSubtitles (set `OPENSUBS_API_KEY` for this)
+3. Translates them to Hebrew automatically
+4. Delivers the Hebrew `.srt` back to Stremio
+5. Results are cached — each subtitle is translated only once
+
+**Bonus:** register the video URL before playing and HebTitles will also fix subtitle timing offset using `ffsubsync`:
 
 ```bash
 curl -X POST "http://localhost:7000/register?imdbId=tt1234567&videoUrl=http%3A%2F%2Fstream.example.com%2Fvideo.mkv"
 ```
 
-Without this, subtitles are translated but not timing-corrected.
-
 ---
 
-## Direct sync + translate endpoint
+## Direct endpoint
+
+Translate any subtitle URL on demand:
 
 ```
 GET http://localhost:7000/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt
 ```
 
-Optional params: `videoUrl`, `lang` (default: `he`).
+Optional params: `videoUrl` (for timing sync), `lang` (default: `he`).
 
 ---
 
 ## Environment variables
 
-| Variable           | Default | Description                              |
-|--------------------|---------|------------------------------------------|
-| `PORT`             | `7000`  | HTTP port                                |
-| `BASE_URL`         | auto    | Public URL (set if behind a proxy)       |
-| `TARGET_LANG`      | `he`    | Translation target language code         |
-| `OPENSUBS_API_KEY` | —       | Free API key from opensubtitles.com      |
+| Variable           | Default | Description                                      |
+|--------------------|---------|--------------------------------------------------|
+| `PORT`             | `7000`  | HTTP port                                        |
+| `BASE_URL`         | auto    | Public URL if running behind a proxy             |
+| `TARGET_LANG`      | `he`    | Translation target (`he` = Hebrew)               |
+| `OPENSUBS_API_KEY` | —       | Free API key from [opensubtitles.com](https://www.opensubtitles.com) |
 
 ---
 
 ## Tests
 
 ```bash
-npm test
+npm test   # 22 tests, all mocked — no network or video files needed
 ```
+
 

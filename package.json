@@ -1,7 +1,7 @@
 {
-  "name": "stremio-subsync",
+  "name": "stremio-hebtitles",
   "version": "1.0.0",
-  "description": "Stremio addon that auto-syncs subtitles using ffsubsync",
+  "description": "Stremio addon — automatic English→Hebrew subtitle translation with optional timing sync via ffsubsync",
   "main": "addon.js",
   "scripts": {
     "start": "node addon.js",
