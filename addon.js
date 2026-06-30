@@ -62,7 +62,7 @@ async function resolveOpenSubsDownloadUrl(fileId) {
 builder.defineSubtitlesHandler(async ({ type, id }) => {
   const [imdbId, season, episode] = id.split(':');
   const videoUrl = videoUrlStore.get(imdbId) || '';
-  const targetLang = process.env.TARGET_LANG || '';
+  const targetLang = process.env.TARGET_LANG || 'he';
   const subs = await fetchOpenSubsList(imdbId, type, season, episode).catch(() => []);
 
   const subtitles = subs.slice(0, 5).flatMap(sub => {
@@ -110,7 +110,7 @@ app.post('/register', (req, res) => {
  */
 app.get('/sync.srt', async (req, res) => {
   const { subUrl, fileId, videoUrl, lang } = req.query;
-  const targetLang = lang || process.env.TARGET_LANG || null;
+  const targetLang = lang || process.env.TARGET_LANG || 'he';
 
   try {
     let resolvedSubUrl = subUrl;
