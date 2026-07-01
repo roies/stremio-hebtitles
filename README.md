@@ -4,6 +4,8 @@ SubSync is a Stremio addon that automatically handles subtitle streams: it can t
 
 > No paid API is required. Translation uses Google Translate when available, with local fallbacks for offline-friendly use.
 
+License: MIT. The project code is licensed under MIT; third-party dependencies and external services (such as ffsubsync, Argos Translate, Google Translate, and OpenSubtitles) remain subject to their own licenses and terms.
+
 ---
 
 ## Install (Windows)
@@ -72,7 +74,7 @@ Process any subtitle URL on demand:
 GET http://localhost:7000/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt
 ```
 
-Optional params: `videoUrl` (for timing sync), `lang` (default: `he`).
+Optional params: `videoUrl` (for timing sync), `lang` (default: `he`), `sourceLang` (default: `en`).
 
 ---
 
@@ -82,9 +84,10 @@ Optional params: `videoUrl` (for timing sync), `lang` (default: `he`).
 |--------------------|---------|-------------|
 | `PORT`             | `7000`  | HTTP port |
 | `BASE_URL`         | auto    | Public URL if running behind a proxy |
-| `TARGET_LANG`      | `he`    | Translation target (Hebrew by default; other codes work too) |
-| `REGISTER_TOKEN`   | —       | If set, `/register` requires `Authorization: Bearer <token>` |
-| `OPENSUBS_API_KEY` | —       | Optional free API key from [opensubtitles.com](https://www.opensubtitles.com) |
+| `SOURCE_LANG`      | `en`    | Source language for translation (default: English) |
+| `TARGET_LANG`      | `he`    | Translation target (default: Hebrew) |
+| `REGISTER_TOKEN`   | -       | If set, `/register` requires `Authorization: example-token` |
+| `OPENSUBS_API_KEY` | -       | Optional free API key from [opensubtitles.com](https://www.opensubtitles.com) |
 
 ## Optional better offline translation
 
@@ -99,7 +102,7 @@ When `argos-translate` is available, SubSync uses it first for offline translati
 ## Security notes
 
 - The addon blocks private/loopback/localhost URLs (`127.0.0.0/8`, `10/8`, `192.168/16`, `169.254/16`, `.local`, etc.) for outbound subtitle/video downloads.
-- `/register` is protected by `REGISTER_TOKEN` when you set it.
+| `REGISTER_TOKEN`   | -       | If set, `/register` requires `Authorization: example-token` |
 - Subtitle text is sent to Google Translate for translation when that path is available; if you need zero-third-party processing, use a local translator instead.
 
 ---
@@ -107,5 +110,7 @@ When `argos-translate` is available, SubSync uses it first for offline translati
 ## Tests
 
 ```bash
-npm test   # 29 mocked tests, no network or video files needed
+npm test   # 32 mocked tests, no network or video files needed
 ```
+
+
