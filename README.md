@@ -19,12 +19,13 @@ Compliance note: this project is a local automation tool. You are responsible fo
 ### Easiest way: double-click the batch files
 
 1. [Download ZIP](https://github.com/roies/stremio-subsync/archive/refs/heads/master.zip) → extract it
-2. Double-click **`install.bat`** — installs all dependencies (run once)
+2. Double-click **`install.bat`** — installs dependencies and creates a local `.env` file from `.env.example` (run once)
 3. Double-click **`start.bat`** — starts the server and shows your URL:
    ```
    Add this URL to Stremio: http://192.168.1.X:7000/manifest.json
    ```
 4. Open Stremio on any device → **Settings → Add-ons** → paste the URL → **Install**
+5. When you are done, use **`stop.bat`** to stop the server or **`uninstall.bat`** to remove local install files.
 
 > Keep `start.bat` running while you watch. The PC must be on the same Wi-Fi as your TV.
 
@@ -82,15 +83,17 @@ Optional params: `videoUrl` (for timing sync), `lang` (default: `he`), `sourceLa
 
 ## Environment variables
 
-| Variable           | Default | Description |
-|--------------------|---------|-------------|
-| `PORT`             | `7000`  | HTTP port |
-| `BASE_URL`         | auto    | Public URL if running behind a proxy |
-| `SOURCE_LANG`      | `en`    | Source language for translation (default: English) |
-| `TARGET_LANG`      | `he`    | Translation target (default: Hebrew) |
+Create a local `.env` file (or copy `.env.example` to `.env`) to persist settings. The addon reads the file automatically on startup.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `7000` | HTTP port |
+| `BASE_URL` | auto | Public URL if running behind a proxy |
+| `SOURCE_LANG` | `en` | Source language for translation (default: English) |
+| `TARGET_LANG` | `he` | Translation target (default: Hebrew) |
 | `ENABLE_REMOTE_TRANSLATION` | `false` | Set to `true` to allow Google Translate calls; default is off for safer, more explicit usage |
-| `REGISTER_TOKEN`   | -       | If set, `/register` requires `Authorization: example-token` |
-| `OPENSUBS_API_KEY` | -       | Optional free API key from [opensubtitles.com](https://www.opensubtitles.com) |
+| `REGISTER_TOKEN` | - | If set, `/register` requires `Authorization: Bearer <token>` |
+| `OPENSUBS_API_KEY` | - | Optional free API key from [opensubtitles.com](https://www.opensubtitles.com) |
 
 ## Optional better offline translation
 
@@ -105,8 +108,8 @@ When `argos-translate` is available, SubSync uses it first for offline translati
 ## Security notes
 
 - The addon blocks private/loopback/localhost URLs (`127.0.0.0/8`, `10/8`, `192.168/16`, `169.254/16`, `.local`, etc.) for outbound subtitle/video downloads.
-| `REGISTER_TOKEN`   | -       | If set, `/register` requires `Authorization: example-token` |
-- Subtitle text is sent to Google Translate for translation when that path is available; if you need zero-third-party processing, use a local translator instead.
+- If you set `REGISTER_TOKEN`, `/register` requires `Authorization: Bearer <token>`.
+- Subtitle text is sent to Google Translate for translation only when `ENABLE_REMOTE_TRANSLATION=true`; otherwise the addon stays on the local/offline path.
 
 ---
 

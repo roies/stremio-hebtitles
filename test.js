@@ -13,6 +13,7 @@ const http = require('http');
 
 const { syncSubtitle, cacheKey, CACHE_DIR } = require('./syncer');
 const { parseSrt, buildSrt, translateSrt } = require('./translator');
+const { loadEnvFile } = require('./config');
 
 let passed = 0;
 let failed = 0;
@@ -282,6 +283,19 @@ async function runTests() {
       assert.ok(manifest.resources.includes('subtitles'));
     } finally {
       await new Promise(r => server.close(r));
+    }
+  });
+
+  await test('loadEnvFile reads .env values without overwriting existing env', async () => {
+    const envFile = path.join(__dirname, '.env.test');
+    await fs.writeFile(envFile, 'SOURCE_LANG=fr\nTARGET_LANG=de\n');
+    try {
+      const env = { TARGET_LANG: 'it' };
+      loadEnvFile(envFile, env);
+      assert.strictEqual(env.SOURCE_LANG, 'fr');
+      assert.strictEqual(env.TARGET_LANG, 'it');
+    } finally {
+      await fs.unlink(envFile).catch(() => {});
     }
   });
 

@@ -1,4 +1,6 @@
 @echo off
+setlocal
+title SubSync
 echo Starting SubSync...
 echo.
 

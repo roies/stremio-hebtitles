@@ -4,9 +4,10 @@
 
 1. Install [Node.js](https://nodejs.org) and [Python](https://python.org)
 2. Download the repo ZIP from GitHub and extract it
-3. Double-click `install.bat`
+3. Double-click `install.bat` (this creates `.env` from `.env.example` if needed)
 4. Double-click `start.bat`
 5. Copy the URL it prints and paste it into Stremio
+6. Use `stop.bat` to stop the addon, or `uninstall.bat` to remove local install files
 
 ## Option 2: Copy-paste commands in Command Prompt or PowerShell
 
@@ -39,3 +40,4 @@ Then in Stremio:
 - Keep the terminal running while you watch.
 - The computer running the addon should be on the same Wi-Fi as your TV.
 - If `argostranslate` fails to install, the built-in fallback translator will still work.
+- To change language behavior, edit `.env` (or `.env.example` before first install) and restart the addon.

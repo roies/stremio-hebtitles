@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 const { addonBuilder, getRouter } = require('stremio-addon-sdk');
 const express = require('express');
@@ -7,6 +7,9 @@ const dns = require('dns').promises;
 const net = require('net');
 const { URL } = require('url');
 const { syncSubtitle } = require('./syncer');
+const { loadEnvFile } = require('./config');
+
+loadEnvFile();
 
 const PORT = parseInt(process.env.PORT || '7000', 10);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
@@ -157,6 +160,20 @@ app.post('/register', async (req, res) => {
 });
 
 /**
+ * Health check endpoint.
+ */
+app.get('/health', (_req, res) => {
+  res.json({
+    ok: true,
+    name: manifest.name,
+    version: manifest.version,
+    targetLang: process.env.TARGET_LANG || 'he',
+    sourceLang: process.env.SOURCE_LANG || 'en',
+    remoteTranslationEnabled: (process.env.ENABLE_REMOTE_TRANSLATION || '').toLowerCase() === 'true',
+  });
+});
+
+/**
  * Sync endpoint — Stremio fetches this URL to get the (possibly corrected) subtitle.
  *
  * GET /sync.srt?subUrl=<encoded>&videoUrl=<encoded>   (direct subtitle URL)
@@ -208,10 +225,10 @@ app.use(getRouter(builder.getInterface()));
 
 function start(port = PORT) {
   return app.listen(port, () => {
-    console.log(`SubSync addon running — install in Stremio: ${BASE_URL}/manifest.json`);
+    console.log(`SubSync addon running ? install in Stremio: ${BASE_URL}/manifest.json`);
   });
 }
 
 if (require.main === module) start();
 
-module.exports = { app, videoUrlStore, resolveOpenSubsDownloadUrl, fetchOpenSubsList, validateUrl };
+module.exports = { app, videoUrlStore, resolveOpenSubsDownloadUrl, fetchOpenSubsList, validateUrl, manifest };

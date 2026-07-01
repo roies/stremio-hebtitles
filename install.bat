@@ -1,7 +1,7 @@
 @echo off
 echo Installing SubSync...
 echo.
-
+ 
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo ERROR: Node.js is not installed.
@@ -40,6 +40,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+if not exist ".env" (
+    copy /y ".env.example" ".env" >nul
+)
+
 echo.
 echo Done! Run start.bat to launch SubSync.
+echo Edit .env if you want to change the defaults.
 pause
