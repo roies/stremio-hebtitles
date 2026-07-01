@@ -15,6 +15,7 @@ const { syncSubtitle, cacheKey, CACHE_DIR } = require('./syncer');
 const { parseSrt, buildSrt, translateSrt } = require('./translator');
 const { loadEnvFile, applyCliOverrides } = require('./config');
 const { createRateLimiter } = require('./addon');
+const { tryAutoUpdate } = require('./updater');
 
 let passed = 0;
 let failed = 0;
@@ -320,6 +321,12 @@ async function runTests() {
 
     assert.strictEqual(nextCalls, 2);
     assert.strictEqual(res.statusCode, 429);
+  });
+
+  await test('tryAutoUpdate skips cleanly when auto update is disabled', async () => {
+    const result = await tryAutoUpdate({ enabled: false });
+    assert.strictEqual(result.skipped, true);
+    assert.strictEqual(result.reason, 'disabled');
   });
 
   console.log('\nsecurity');

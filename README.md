@@ -87,6 +87,10 @@ GET http://localhost:7000/health
 
 This returns a simple status payload so you can confirm the addon is up.
 
+## Auto-update on startup
+
+The addon will check for a newer `master` commit on GitHub when it starts. If an update is available, it will pull it automatically. You can disable this with `AUTO_UPDATE=false` in `.env` or by passing `--auto-update=false`.
+
 ---
 
 ## Environment variables

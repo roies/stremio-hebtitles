@@ -8,6 +8,7 @@ const net = require('net');
 const { URL } = require('url');
 const { syncSubtitle } = require('./syncer');
 const { loadEnvFile, applyCliOverrides } = require('./config');
+const { tryAutoUpdate } = require('./updater');
 
 loadEnvFile();
 applyCliOverrides(process.argv.slice(2), process.env);
@@ -261,13 +262,29 @@ app.get('/sync.srt', async (req, res) => {
 // Mount the Stremio addon protocol router (handles /manifest.json, /subtitles/*)
 app.use(getRouter(builder.getInterface()));
 
-function start(port = PORT) {
-  return app.listen(port, () => {
-    console.log(`SubSync addon running ? install in Stremio: ${BASE_URL}/manifest.json`);
+async function start(port = PORT) {
+  const server = app.listen(port, async () => {
+    console.log(`SubSync addon running — install in Stremio: ${BASE_URL}/manifest.json`);
+    try {
+      const updateResult = await tryAutoUpdate({ enabled: (process.env.AUTO_UPDATE || 'true').toLowerCase() !== 'false' });
+      if (updateResult.updated) {
+        console.log('Auto-update applied');
+      } else if (!updateResult.skipped) {
+        console.log('Auto-update check complete');
+      }
+    } catch (err) {
+      console.log('Auto-update check skipped due to an error');
+    }
   });
+  return server;
 }
 
-if (require.main === module) start();
+if (require.main === module) {
+  start().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}
 
 module.exports = {
   app,
