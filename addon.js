@@ -194,7 +194,7 @@ app.get('/sync.srt', async (req, res) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.send(content);
   } catch (err) {
-    console.error('Sync error:', err.message);
+    console.error('Subtitle processing failed');
     res.status(500).send('Subtitle processing failed');  // never expose internal error details
   }
 });
