@@ -2,8 +2,10 @@
 
 const SMALL_HEB_MAP = {
   hello: 'שלום',
+  hi: 'היי',
   world: 'עולם',
   goodbye: 'להתראות',
+  bye: 'להתראות',
   yes: 'כן',
   no: 'לא',
   the: 'ה',
@@ -55,7 +57,70 @@ const SMALL_HEB_MAP = {
   night: 'לילה',
   morning: 'בוקר',
   evening: 'ערב',
+  good: 'טוב',
+  morning: 'בוקר',
+  evening: 'ערב',
+  night: 'לילה',
+  sorry: 'סליחה',
+  thank: 'תודה',
+  thanks: 'תודה',
+  you: 'אתה',
+  me: 'אותי',
+  us: 'אותנו',
+  them: 'אותם',
+  name: 'שם',
+  call: 'לקרוא',
+  need: 'צריך',
+  want: 'רוצה',
+  know: 'יודע',
+  think: 'חושב',
+  feel: 'מרגיש',
+  safe: 'בטוח',
+  danger: 'סכנה',
+  stay: 'להישאר',
+  leave: 'לעזוב',
+  come: 'בוא',
+  back: 'בחזרה',
+  now: 'עכשיו',
+  later: 'מאוחר יותר',
 };
+
+const PHRASE_MAP = {
+  'good morning': 'בוקר טוב',
+  'good evening': 'ערב טוב',
+  'good night': 'לילה טוב',
+  'goodbye for now': 'להתראות לעכשיו',
+  'thank you': 'תודה',
+  'thanks a lot': 'תודה רבה',
+  'sorry about that': 'סליחה על זה',
+  'excuse me': 'סליחה',
+  'please wait': 'בבקשה תחכה',
+  'please stop': 'בבקשה תעצור',
+  'please help': 'בבקשה עזרה',
+  'i need help': 'אני צריך עזרה',
+  'i need to go': 'אני צריך ללכת',
+  'where are you': 'איפה אתה',
+  'what is your name': 'מה שמך',
+  'my name is': 'שמי הוא',
+  'i do not know': 'אני לא יודע',
+  'i dont know': 'אני לא יודע',
+  'i am fine': 'אני בסדר',
+  'i am hungry': 'אני רעב',
+  'i am tired': 'אני עייף',
+  'i am scared': 'אני מפחד',
+  'i love you': 'אני אוהב אותך',
+  'be careful': 'היו זהירים',
+  'stay calm': 'הישאר רגוע',
+  'call the police': 'התקשר למשטרה',
+  'call me': 'תתקשר אליי',
+  'come here': 'בוא הנה',
+  'go away': 'לך מכאן',
+  'wait here': 'תחכה כאן',
+  'take care': 'תשמור על עצמך',
+  'see you later': 'נתראה later',
+  'see you soon': 'נתראה בקרוב',
+};
+
 
 // Parse SRT into blocks: [{ index, timing, text }]
 function parseSrt(content) {
@@ -73,14 +138,30 @@ function buildSrt(blocks) {
   return blocks.map(b => `${b.index}\n${b.timing}\n${b.text}`).join('\n\n') + '\n';
 }
 
+function normalizePhrase(text) {
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function localTranslateText(text, targetLang) {
   if (targetLang && !/^he|hebrew$/i.test(targetLang)) return null;
-  const words = text.split(/(\s|[.,!?;:'"()\-]+)/).filter(Boolean);
-  const translated = words.map(word => {
-    const key = word.toLowerCase();
-    return SMALL_HEB_MAP[key] || word;
-  });
-  return translated.join('');
+  const normalized = normalizePhrase(text);
+  if (!normalized) return '';
+
+  if (PHRASE_MAP[normalized]) return PHRASE_MAP[normalized];
+
+  const tokens = text.split(/(\s+|[.,!?;:'"()\-]+)/);
+  return tokens.map(token => {
+    if (!token.trim()) return token;
+    const match = token.match(/[A-Za-z']+/);
+    if (!match) return token;
+
+    const word = match[0];
+    const lower = word.toLowerCase();
+    const translated = SMALL_HEB_MAP[lower] || word;
+    if (word === word.toUpperCase()) return translated.toUpperCase();
+    if (/[A-Z]/.test(word[0])) return translated.charAt(0).toUpperCase() + translated.slice(1);
+    return translated;
+  }).join('');
 }
 
 // Unofficial Google Translate endpoint — no API key, uses existing node-fetch

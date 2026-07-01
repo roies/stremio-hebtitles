@@ -420,6 +420,17 @@ async function runTests() {
     assert.ok(result.includes('להתראות'));
   });
 
+  await test('translateSrt handles common phrases offline', async () => {
+    const mockFetch = async () => ({ ok: false, status: 429, json: async () => [] });
+    const result = await translateSrt(
+      '1\n00:00:01,000 --> 00:00:03,000\nGood morning\n\n2\n00:00:05,000 --> 00:00:07,000\nPlease wait',
+      'he',
+      mockFetch
+    );
+    assert.ok(result.includes('בוקר טוב'));
+    assert.ok(result.includes('בבקשה תחכה'));
+  });
+
   await test('syncSubtitle translates when targetLang provided', async () => {
     const subUrl = 'http://test.invalid/translate-sub.srt';
     await fs.unlink(path.join(CACHE_DIR, `${cacheKey(subUrl, null, 'he')}.srt`)).catch(() => {});
