@@ -8,15 +8,37 @@ const crypto = require('crypto');
 const { translateSrt } = require('./translator');
 
 const CACHE_DIR = path.join(os.tmpdir(), 'subsync-cache');
+const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
 
 async function downloadFile(url, dest, fetchFn) {
-  const res = await fetchFn(url);
+  const res = await fetchFn(url, { timeout: 15000, redirect: 'manual' });
   if (!res.ok) throw new Error(`HTTP ${res.status} downloading ${url}`);
   await new Promise((resolve, reject) => {
     const out = createWriteStream(dest);
+    let bytes = 0;
+    let finished = false;
+    const fail = err => {
+      if (finished) return;
+      finished = true;
+      out.destroy();
+      reject(err);
+    };
+    const timer = setTimeout(() => fail(new Error(`Download timed out: ${url}`)), 15000);
+    res.body.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > MAX_DOWNLOAD_BYTES) {
+        fail(new Error(`Download too large: ${url}`));
+      }
+    });
+    res.body.on('error', fail);
+    out.on('error', fail);
+    out.on('finish', () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      resolve();
+    });
     res.body.pipe(out);
-    res.body.on('error', reject);
-    out.on('finish', resolve);
   });
 }
 

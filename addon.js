@@ -3,10 +3,48 @@
 const { addonBuilder, getRouter } = require('stremio-addon-sdk');
 const express = require('express');
 const fetch = require('node-fetch');
+const dns = require('dns').promises;
+const net = require('net');
+const { URL } = require('url');
 const { syncSubtitle } = require('./syncer');
 
 const PORT = parseInt(process.env.PORT || '7000', 10);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const REGISTER_TOKEN = process.env.REGISTER_TOKEN || null;
+const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
+
+// RFC 1918, loopback, link-local, and cloud metadata ranges to block for SSRF
+const BLOCKED_HOSTNAME_RE = /^(localhost|.*\.local)$/i;
+
+function isBlockedIp(ip) {
+  if (!net.isIP(ip)) return false;
+  if (ip === '::1' || ip === '0.0.0.0') return true;
+  if (net.isIPv4(ip)) {
+    const octets = ip.split('.').map(Number);
+    return octets[0] === 10 ||
+      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168) ||
+      (octets[0] === 169 && octets[1] === 254) ||
+      octets[0] === 127;
+  }
+  if (net.isIPv6(ip)) {
+    return ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe8') || ip === '::1';
+  }
+  return false;
+}
+
+async function validateUrl(raw) {
+  let u;
+  try { u = new URL(raw); } catch { throw new Error('Invalid URL'); }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Only http/https URLs allowed');
+  if (BLOCKED_HOSTNAME_RE.test(u.hostname)) throw new Error('URL hostname not allowed');
+
+  const infos = await dns.lookup(u.hostname, { all: true });
+  const blocked = infos.some(info => isBlockedIp(info.address));
+  if (blocked) throw new Error('URL hostname not allowed');
+
+  return u.href;
+}
 
 // ponytail: in-memory store; restarts lose registrations but re-syncing is cheap
 const videoUrlStore = new Map();
@@ -95,13 +133,25 @@ app.use(express.json());
  *
  * POST /register?imdbId=tt1234567&videoUrl=http%3A%2F%2Fstream.example.com%2Fvideo.mkv
  */
-app.post('/register', (req, res) => {
+app.post('/register', async (req, res) => {
+  // Require token if REGISTER_TOKEN env var is set
+  if (REGISTER_TOKEN) {
+    const auth = req.headers['authorization'] || '';
+    if (auth !== `Bearer ${REGISTER_TOKEN}`) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
   const { imdbId, videoUrl } = req.query;
   if (!imdbId || !videoUrl) {
     return res.status(400).json({ error: 'imdbId and videoUrl required' });
   }
+  try {
+    await validateUrl(videoUrl);
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
   videoUrlStore.set(imdbId, videoUrl);
-  res.json({ ok: true, imdbId, videoUrl });
+  res.json({ ok: true });  // don't echo back values
 });
 
 /**
@@ -123,9 +173,20 @@ app.get('/sync.srt', async (req, res) => {
       return res.status(400).send('Missing subUrl or fileId');
     }
 
+    // Validate URLs before making any outbound requests
+    try { resolvedSubUrl = await validateUrl(resolvedSubUrl); } catch (e) {
+      return res.status(400).send(e.message);
+    }
+    let safeVideoUrl = null;
+    if (videoUrl) {
+      try { safeVideoUrl = await validateUrl(videoUrl); } catch (e) {
+        return res.status(400).send(e.message);
+      }
+    }
+
     const content = await syncSubtitle({
       subUrl: resolvedSubUrl,
-      videoUrl: videoUrl || null,
+      videoUrl: safeVideoUrl,
       targetLang,
       fetch,
     });
@@ -134,7 +195,7 @@ app.get('/sync.srt', async (req, res) => {
     res.send(content);
   } catch (err) {
     console.error('Sync error:', err.message);
-    res.status(500).send(`Sync failed: ${err.message}`);
+    res.status(500).send('Subtitle processing failed');  // never expose internal error details
   }
 });
 
@@ -149,4 +210,4 @@ function start(port = PORT) {
 
 if (require.main === module) start();
 
-module.exports = { app, videoUrlStore, resolveOpenSubsDownloadUrl, fetchOpenSubsList };
+module.exports = { app, videoUrlStore, resolveOpenSubsDownloadUrl, fetchOpenSubsList, validateUrl };

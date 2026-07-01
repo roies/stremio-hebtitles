@@ -61,7 +61,14 @@ Optional params: `videoUrl` (for timing sync), `lang` (default: `he`).
 | `PORT`             | `7000`  | HTTP port                                        |
 | `BASE_URL`         | auto    | Public URL if running behind a proxy             |
 | `TARGET_LANG`      | `he`    | Translation target (`he` = Hebrew)               |
+| `REGISTER_TOKEN`   | —       | If set, `/register` requires `Authorization: Bearer <token>` |
 | `OPENSUBS_API_KEY` | —       | Free API key from [opensubtitles.com](https://www.opensubtitles.com) |
+
+## Security notes
+
+- The addon blocks private/loopback/localhost URLs (`127.0.0.0/8`, `10/8`, `192.168/16`, `169.254/16`, `.local`, etc.) for outbound subtitle/video downloads.
+- `/register` is protected by `REGISTER_TOKEN` when you set it.
+- Subtitle text is sent to Google Translate for translation; if you need zero-third-party processing, use a local translator instead.
 
 ---
 

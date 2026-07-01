@@ -233,12 +233,12 @@ async function runTests() {
       const { status, body } = await httpRequest({
         hostname: 'localhost',
         port,
-        path: '/register?imdbId=tt0000001&videoUrl=http%3A%2F%2Fstream.test%2Fv.mkv',
+        path: '/register?imdbId=tt0000001&videoUrl=https%3A%2F%2Fexample.com%2Fv.mkv',
         method: 'POST',
       });
       assert.strictEqual(status, 200);
       assert.strictEqual(JSON.parse(body).ok, true);
-      assert.strictEqual(videoUrlStore.get('tt0000001'), 'http://stream.test/v.mkv');
+      assert.strictEqual(videoUrlStore.get('tt0000001'), 'https://example.com/v.mkv');
     } finally {
       await new Promise(r => server.close(r));
     }
@@ -276,6 +276,87 @@ async function runTests() {
       assert.strictEqual(manifest.id, 'community.hebtitles');
       assert.ok(manifest.resources.includes('subtitles'));
     } finally {
+      await new Promise(r => server.close(r));
+    }
+  });
+
+  console.log('\nsecurity');
+
+  const { validateUrl } = require('./addon');
+
+  await test('validateUrl blocks private IPs (SSRF)', async () => {
+    for (const url of [
+      'http://169.254.169.254/latest/meta-data/',   // AWS metadata
+      'http://10.0.0.1/admin',                       // RFC 1918
+      'http://192.168.1.1/',                         // RFC 1918
+      'http://127.0.0.1:6379/',                      // loopback
+      'http://localhost/etc/passwd',                 // localhost
+    ]) {
+      await assert.rejects(() => validateUrl(url), /not allowed|Invalid/, `should block: ${url}`);
+    }
+  });
+
+  await test('validateUrl blocks non-http schemes', async () => {
+    await assert.rejects(() => validateUrl('file:///etc/passwd'), /not allowed|Only http/);
+    await assert.rejects(() => validateUrl('ftp://files.example.com/sub.srt'), /not allowed|Only http/);
+  });
+
+  await test('validateUrl accepts legitimate http/https URLs', async () => {
+    await assert.doesNotReject(() => validateUrl('https://example.com/subs/file.srt'));
+    await assert.doesNotReject(() => validateUrl('https://example.com/video.mkv'));
+  });
+
+  await test('GET /sync.srt returns 400 for SSRF subUrl', async () => {
+    const server = app.listen(0);
+    const { port } = server.address();
+    try {
+      const { status } = await httpRequest({
+        hostname: 'localhost',
+        port,
+        path: '/sync.srt?subUrl=http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data%2F',
+      });
+      assert.strictEqual(status, 400);
+    } finally {
+      await new Promise(r => server.close(r));
+    }
+  });
+
+  await test('GET /sync.srt 500 does not expose error details', async () => {
+    // This test verifies that internal errors are not leaked
+    const server = app.listen(0);
+    const { port } = server.address();
+    try {
+      // subUrl pointing to a non-resolving host will error; body must not contain internal details
+      const { status, body } = await httpRequest({
+        hostname: 'localhost',
+        port,
+        path: '/sync.srt?subUrl=https%3A%2F%2Fexample.com%2Fsub.srt',
+      });
+      assert.strictEqual(status, 500);
+      assert.ok(!body.includes('ENOTFOUND'), 'should not leak internal error code');
+      assert.ok(!body.includes('example.com'), 'should not leak hostname');
+    } finally {
+      await new Promise(r => server.close(r));
+    }
+  });
+
+  await test('POST /register returns 401 when REGISTER_TOKEN is set and token missing', async () => {
+    process.env.REGISTER_TOKEN = 'secret123';
+    // Reload addon with new env
+    delete require.cache[require.resolve('./addon')];
+    const { app: tokenApp } = require('./addon');
+    const server = tokenApp.listen(0);
+    const { port } = server.address();
+    try {
+      const { status } = await httpRequest({
+        hostname: 'localhost',
+        port,
+        path: '/register?imdbId=tt9999999&videoUrl=https%3A%2F%2Fexample.com%2Fv.mkv',
+        method: 'POST',
+      });
+      assert.strictEqual(status, 401);
+    } finally {
+      delete process.env.REGISTER_TOKEN;
       await new Promise(r => server.close(r));
     }
   });
